@@ -1,19 +1,53 @@
 import * as React from 'react';
 import { useState, useEffect } from 'react';
+import axios from 'axios';
 import Search from '../search/search.test';
 import Create from '../createpost/create.test';
+import PostFormDialog from '../../components/Portal/portal.test';
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
 import EditIcon from '@mui/icons-material/Edit';
 import Button from '@mui/material/Button';
-import TextField from '@mui/material/TextField';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogContentText from '@mui/material/DialogContentText';
 import DialogTitle from '@mui/material/DialogTitle';
-import axios from 'axios';
+import CloseIcon from '@mui/icons-material/Close';
 
+const API_URL = 'https://jsonplaceholder.typicode.com/posts';
 
+const ConfirmationDialog = ({ open, onClose, onConfirm, title, message }) => (
+  <Dialog open={open} onClose={onClose} aria-labelledby="confirm-dialog-title">
+    <DialogTitle id="confirm-dialog-title">{title}</DialogTitle>
+    <DialogContent>
+      <DialogContentText>{message}</DialogContentText>
+    </DialogContent>
+    <DialogActions>
+      <Button onClick={onClose} color="primary">
+        Cancel
+      </Button>
+      <Button onClick={onConfirm} color="error" variant="contained">
+        Delete
+      </Button>
+    </DialogActions>
+  </Dialog>
+);
+
+const MessageDisplay = ({ message, type, onClose }) => {
+  if (!message) return null;
+  const isError = type === 'error';
+  return (
+    <div 
+      className={`fixed bottom-4 right-4 p-4 rounded-lg shadow-lg text-white ${isError ? 'bg-red-600' : 'bg-green-600'}`}
+      role="alert"
+    >
+      <div className="flex justify-between items-center">
+        <span>{message}</span>
+        <CloseIcon className="ml-4 cursor-pointer" onClick={onClose} aria-label="Close message" />
+      </div>
+    </div>
+  );
+};
 
 const Cards = () => {
   const [posts, setPosts] = useState([]);
@@ -21,19 +55,24 @@ const Cards = () => {
   const [filteredPosts, setFilteredPosts] = useState([]);
   const [editingPost, setEditingPost] = useState(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [postToDelete, setPostToDelete] = useState(null);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [message, setMessage] = useState('');
+  const [messageType, setMessageType] = useState('success');
   
   useEffect(() => {
     const fetchPosts = async () => {
       try {
-        const response = await axios.get('https://jsonplaceholder.typicode.com/posts');
-        const data = response.data;
+        const response = await axios.get(API_URL);
+        const data = response.data.slice(0, 20); 
         setPosts(data);
         setFilteredPosts(data);
       } catch (err) {
         console.error('Error fetching posts:', err);
+        handleShowMessage(`Error fetching posts: ${err.message}`, 'error');
       }
     };
-
     fetchPosts();
   }, []);
 
@@ -49,14 +88,18 @@ const Cards = () => {
     }
   }, [searchTerm, posts]);
 
+  const handleShowMessage = (msg, type = 'success') => {
+    setMessage(msg);
+    setMessageType(type);
+    setTimeout(() => setMessage(''), 5000);
+  };
+
   const handleSearchChange = (term) => {
     setSearchTerm(term);
   };
 
   const handlePostCreated = (newPost) => {
-    
     setPosts(prevPosts => [newPost, ...prevPosts]);
-    setFilteredPosts(prevFiltered => [newPost, ...prevFiltered]);
   };
 
   const handlePostUpdated = (updatedPost) => {
@@ -65,15 +108,10 @@ const Cards = () => {
         post.id === updatedPost.id ? updatedPost : post
       )
     );
-    setFilteredPosts(prevFiltered => 
-      prevFiltered.map(post => 
-        post.id === updatedPost.id ? updatedPost : post
-      )
-    );
     setIsEditDialogOpen(false);
     setEditingPost(null);
+    handleShowMessage('Post updated successfully!', 'success');
   };
-
 
   const handleEditClick = (post) => {
     setEditingPost(post);
@@ -85,48 +123,74 @@ const Cards = () => {
     setEditingPost(null);
   };
 
-  const handleDeleteClick = async (postId) => {
-    if (window.confirm('Are you sure you want to delete this post?')) {
+  const handleUpdateSubmit = async (postData) => {
+    setIsSubmitting(true);
+    try {
+      const response = await axios.put(`${API_URL}/${postData.id}`, postData);
+      const updatedPost = response.data;
+      handlePostUpdated(updatedPost);
+    } catch (error) {
+      console.error('Error updating post:', error);
+      handleShowMessage(`Error updating post: ${error.message}`, 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteClick = (postId) => {
+    setPostToDelete(postId);
+    setIsConfirmOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (postToDelete) {
       try {
-        
-        await axios.delete(`https://jsonplaceholder.typicode.com/posts/${postId}`);
-        
-        
-        setPosts(prevPosts => prevPosts.filter(post => post.id !== postId));
-        setFilteredPosts(prevFiltered => prevFiltered.filter(post => post.id !== postId));
-        
-        alert('Post deleted successfully!');
+        await axios.delete(`${API_URL}/${postToDelete}`);
+        setPosts(prevPosts => prevPosts.filter(post => post.id !== postToDelete));
+        handleShowMessage('Post deleted successfully!');
       } catch (err) {
         console.error('Error deleting post:', err);
-        alert('Error deleting post');
+        handleShowMessage(`Error deleting post: ${err.message}`, 'error');
       }
     }
+    setIsConfirmOpen(false);
+    setPostToDelete(null);
   };
 
   return (
     <>
-    
-      <Create onPostCreated={handlePostCreated} />
+      <Create onPostCreated={handlePostCreated} onMessage={handleShowMessage} />
 
+      <PostFormDialog
+        open={isEditDialogOpen}
+        onClose={handleEditClose}
+        post={editingPost}
+        onPostSubmitted={handleUpdateSubmit}
+        isSubmitting={isSubmitting}
+      />
 
-      {isEditDialogOpen && (
-        <EditDialog 
-          post={editingPost}
-          onClose={handleEditClose}
-          onPostUpdated={handlePostUpdated}
-        />
-      )}
+      <ConfirmationDialog
+        open={isConfirmOpen}
+        onClose={() => setIsConfirmOpen(false)}
+        onConfirm={handleConfirmDelete}
+        title="Delete Post?"
+        message="Are you sure you want to delete this post? This action cannot be undone."
+      />
 
+      <MessageDisplay 
+        message={message} 
+        type={messageType} 
+        onClose={() => setMessage('')} 
+      />
 
-      <div className="p-6">
+      <div className="p-6 max-w-7xl mx-auto">
         <Search 
           searchTerm={searchTerm} 
           onSearchChange={handleSearchChange} 
         />
       </div>
 
-
-      <div className="px-6 pb-4">
+      <div className="px-6 pb-4 max-w-7xl mx-auto">
         <p className="text-gray-600">
           Showing {filteredPosts.length} of {posts.length} posts
           {searchTerm && (
@@ -135,57 +199,67 @@ const Cards = () => {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6 max-w-7xl mx-auto">
         {filteredPosts.map((post) => (
           <article
             key={post.id}
-            className="group relative bg-linear-to-br from-white to-gray-50 rounded-2xl p-6 shadow-xs border border-gray-200 transition-all duration-300 hover:shadow-lg"
-          > 
-            <div className="ml-4">
-              <div className="inline-block bg-blue-200 text-gray-800 px-3 py-1 rounded-full text-xs font-semibold mb-4">
-                Post #{post.id}
+            className="group relative bg-white rounded-2xl p-6 shadow-sm border border-gray-200 transition-all duration-300 hover:shadow-lg flex flex-col"
+          >
+            <div className="flex-grow">
+              <div className="flex justify-between items-center mb-4">
+                <span className="inline-block bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-semibold">
+                  Post #{post.id}
+                </span>
               </div>
               
-              <h3 className="text-xl font-bold text-gray-900 mb-3 pr-4">
+              <h3 className="text-xl font-bold text-gray-900 mb-3 pr-16 capitalize">
                 {post.title}
               </h3>
               
-              <p className="text-gray-600 leading-relaxed mb-6 line-clamp-3">
+              <p className="text-gray-600 leading-relaxed mb-6 line-clamp-3 first-letter:capitalize">
                 {post.body}
               </p>
-              
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm text-gray-500">User ID: {post.userId}</span>
-                </div>
-              </div>
             </div>
             
-            <div className='ml-[67%] cursor-pointer absolute top-5'>
-              <EditIcon 
-                className='mr-3' 
-                sx={{ color: 'green' }} 
+            <div className='absolute top-4 right-4 flex space-x-2'>
+              <Button 
+                variant="text" 
+                size="small"
+                className="!p-2 !min-w-0 !border-gray-300 !text-gray-600 hover:!bg-gray-100"
                 onClick={() => handleEditClick(post)}
-              />
-              <DeleteForeverIcon 
-                sx={{ color: 'red' }}
+                aria-label={`Edit post ${post.id}`}
+              >
+                <EditIcon sx={{ color: 'green', fontSize: 20 }} />
+              </Button>
+              <Button 
+                variant="text" 
+                size="small"
+                className="!p-2 !min-w-0 !border-gray-300 !text-gray-600 hover:!bg-gray-100"
                 onClick={() => handleDeleteClick(post.id)}
-              />
+                aria-label={`Delete post ${post.id}`}
+              >
+                <DeleteForeverIcon sx={{ color: 'red', fontSize: 20 }} />
+              </Button>
             </div>
           </article>
         ))}
         
-        {filteredPosts.length === 0 && searchTerm && (
+        {filteredPosts.length === 0 && (
           <div className="col-span-full text-center py-12">
             <p className="text-gray-500 text-lg">
-              No posts found matching "<span className="font-semibold">{searchTerm}</span>"
+              {searchTerm 
+                ? `No posts found matching "${searchTerm}"`
+                : "No posts to display."
+              }
             </p>
-            <button 
-              onClick={() => setSearchTerm('')}
-              className="mt-4 text-blue-600 hover:text-blue-800 font-medium"
-            >
-              Clear search
-            </button>
+            {searchTerm && (
+              <button 
+                onClick={() => setSearchTerm('')}
+                className="mt-4 text-blue-600 hover:text-blue-800 font-medium"
+              >
+                Clear search
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -193,98 +267,4 @@ const Cards = () => {
   );
 };
 
-
-
-const EditDialog = ({ post, onClose, onPostUpdated }) => {
-  const [title, setTitle] = useState(post?.title || '');
-  const [body, setBody] = useState(post?.body || '');
-  const [loading, setLoading] = useState(false);
-
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    setLoading(true);
-
-    try {
-      const postData = { 
-        title, 
-        body, 
-        userId: post.userId,
-        id: post.id
-      };
-
-      const response = await axios.puts(`https://jsonplaceholder.typicode.com/posts/${post.id}`,
-        postData
-      );
-
-      const updatedPost = response.data;
-      
-      if (onPostUpdated) {
-        onPostUpdated(updatedPost);
-      }
-
-      alert('Post updated successfully!');
-    } catch (error) {
-      console.error('Error updating post:', error);
-      alert('Error updating post: ' + error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    
-    <Dialog open={true} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Edit Post</DialogTitle>
-      <DialogContent>
-        <DialogContentText>
-          Update the title and description for this post.
-        </DialogContentText>
-        <form onSubmit={handleSubmit} id="edit-form">
-          <TextField
-            autoFocus
-            required
-            margin="dense"
-            id="edit-title"
-            name="title"
-            label="Title"
-            type="text"
-            fullWidth
-            variant="outlined"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            sx={{ mb: 2 }}
-          />
-          <TextField
-            required
-            margin="dense"
-            id="edit-body"
-            name="body"
-            label="Description"
-            type="text"
-            fullWidth
-            variant="outlined"
-            multiline
-            rows={4}
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-          />
-        </form>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose} disabled={loading}>
-          Cancel
-        </Button>
-        <Button 
-          type="submit" 
-          form="edit-form" 
-          disabled={loading || !title.trim() || !body.trim()}
-          variant="contained"
-        >
-          {loading ? 'Updating...' : 'Update Post'}
-        </Button>
-      </DialogActions>
-    </Dialog>
-  );
-
-};
 export default Cards;
