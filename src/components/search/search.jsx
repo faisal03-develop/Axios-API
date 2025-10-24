@@ -7,27 +7,28 @@ import InputAdornment from '@mui/material/InputAdornment';
 import Box from '@mui/material/Box';
 import FormControl from '@mui/material/FormControl';
 
-
-const Search = () => {
+const Search = ({ searchTerm, onSearchChange }) => {
   return (
     <>
-        <div id="search">
+      <div id="search">
         <Box sx={{ '& > :not(style)': { m: 1 } }}>
-            <FormControl variant="standard">
-                <InputLabel htmlFor="input-with-icon-adornment">
-                Search Posts
-                </InputLabel>
-                <Input
-                id="input-with-icon-adornment"
-                startAdornment={
-                    <InputAdornment position="start">
-                    <SearchIcon />
-                    </InputAdornment>
-                }
-                />
-            </FormControl>
-            </Box>
-    </div>
+          <FormControl variant="standard" sx={{ minWidth: 300 }}>
+            <InputLabel htmlFor="input-with-icon-adornment">
+              Search Posts
+            </InputLabel>
+            <Input
+              id="input-with-icon-adornment"
+              value={searchTerm}
+              onChange={(e) => onSearchChange(e.target.value)}
+              startAdornment={
+                <InputAdornment position="start">
+                  <SearchIcon />
+                </InputAdornment>
+              }
+            />
+          </FormControl>
+        </Box>
+      </div>
     </>
   )
 }

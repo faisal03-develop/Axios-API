@@ -6,13 +6,17 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogContentText from '@mui/material/DialogContentText';
 import DialogTitle from '@mui/material/DialogTitle';
+import { useState } from 'react';
+import axios from 'axios';
 
 
+const API_URL = 'https://jsonplaceholder.typicode.com/posts';
 
-
-const Create = () => {
-
-    const [open, setOpen] = React.useState(false);
+const Create = ({ onPostCreated }) => {
+  const [open, setOpen] = React.useState(false);
+  const [title, setTitle] = useState('');
+  const [body, setBody] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleClickOpen = () => {
     setOpen(true);
@@ -20,23 +24,60 @@ const Create = () => {
 
   const handleClose = () => {
     setOpen(false);
+    setTitle('');
+    setBody('');
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    const formJson = Object.fromEntries(formData.entries());
-    const email = formJson.email;
-    console.log(email);
-    handleClose();
+    setLoading(true);
+
+    try {
+      const postData = { 
+        title, 
+        body, 
+        userId: 1 
+      };
+
+      const response = await axios.post(API_URL, postData);
+
+
+      const newPost = response.data;
+      
+      newPost.id = Date.now();
+      
+      if (onPostCreated) {
+        onPostCreated(newPost);
+      }
+
+      alert('Post created successfully!');
+      
+      handleClose();
+    } catch (error) {
+      console.error('Error creating post:', error);
+      alert('Error creating post: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <><React.Fragment>
-      <Button variant="text" onClick={handleClickOpen}>
-        Add New Post
-      </Button>
-      <Dialog open={open} onClose={handleClose}>
+    <React.Fragment>
+      <div id="button" className='flex justify-center mb-6'>
+        <Button 
+          variant="text" 
+          onClick={handleClickOpen}
+        >
+          Add New Post
+        </Button>
+      </div>
+      
+      <Dialog 
+        open={open} 
+        onClose={handleClose}
+        maxWidth="sm"
+        fullWidth
+      >
         <DialogTitle>Add New Post</DialogTitle>
         <DialogContent>
           <DialogContentText>
@@ -52,10 +93,12 @@ const Create = () => {
               label="Title"
               type="text"
               fullWidth
-              variant="standard"
+              variant="outlined"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              sx={{ mb: 2 }}
             />
             <TextField
-              autoFocus
               required
               margin="dense"
               id="description"
@@ -63,21 +106,30 @@ const Create = () => {
               label="Description"
               type="text"
               fullWidth
-              variant="standard"
+              variant="outlined"
+              multiline
+              rows={4}
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
             />
           </form>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleClose}>Cancel</Button>
-          <Button type="submit" form="subscription-form">
-            Post
+          <Button onClick={handleClose} disabled={loading}>
+            Cancel
+          </Button>
+          <Button 
+            type="submit" 
+            form="subscription-form" 
+            disabled={loading || !title.trim() || !body.trim()}
+            variant="contained"
+          >
+            {loading ? 'Creating...' : 'Create Post'}
           </Button>
         </DialogActions>
       </Dialog>
     </React.Fragment>
-      
-    </>
-  )
-}
+  );
+};
 
-export default Create
+export default Create;

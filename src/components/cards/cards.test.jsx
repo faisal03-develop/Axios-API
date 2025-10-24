@@ -35,7 +35,6 @@ const Cards = () => {
     fetchPosts();
   }, []);
 
-  // Filter posts whenever searchTerm changes
   useEffect(() => {
     if (searchTerm.trim() === '') {
       setFilteredPosts(posts);
@@ -52,14 +51,12 @@ const Cards = () => {
     setSearchTerm(term);
   };
 
-  // Handle new post creation
   const handlePostCreated = (newPost) => {
-    // Add the new post to the beginning of the posts array
+    
     setPosts(prevPosts => [newPost, ...prevPosts]);
     setFilteredPosts(prevFiltered => [newPost, ...prevFiltered]);
   };
 
-  // Handle post update
   const handlePostUpdated = (updatedPost) => {
     setPosts(prevPosts => 
       prevPosts.map(post => 
@@ -75,28 +72,26 @@ const Cards = () => {
     setEditingPost(null);
   };
 
-  // Open edit dialog with post data
+
   const handleEditClick = (post) => {
     setEditingPost(post);
     setIsEditDialogOpen(true);
   };
 
-  // Close edit dialog
   const handleEditClose = () => {
     setIsEditDialogOpen(false);
     setEditingPost(null);
   };
 
-  // Handle post deletion
   const handleDeleteClick = async (postId) => {
     if (window.confirm('Are you sure you want to delete this post?')) {
       try {
-        // Simulate API call for deletion
+        
         await fetch(`https://jsonplaceholder.typicode.com/posts/${postId}`, {
           method: 'DELETE',
         });
         
-        // Update local state
+        
         setPosts(prevPosts => prevPosts.filter(post => post.id !== postId));
         setFilteredPosts(prevFiltered => prevFiltered.filter(post => post.id !== postId));
         
@@ -110,10 +105,10 @@ const Cards = () => {
 
   return (
     <>
-      {/* Create Post Component */}
+    
       <Create onPostCreated={handlePostCreated} />
 
-      {/* Edit Post Dialog */}
+
       {isEditDialogOpen && (
         <EditDialog 
           post={editingPost}
@@ -122,7 +117,7 @@ const Cards = () => {
         />
       )}
 
-      {/* Search Component */}
+
       <div className="p-6">
         <Search 
           searchTerm={searchTerm} 
@@ -130,7 +125,7 @@ const Cards = () => {
         />
       </div>
 
-      {/* Posts Count */}
+
       <div className="px-6 pb-4">
         <p className="text-gray-600">
           Showing {filteredPosts.length} of {posts.length} posts
@@ -140,12 +135,11 @@ const Cards = () => {
         </p>
       </div>
 
-      {/* Posts Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
         {filteredPosts.map((post) => (
           <article
             key={post.id}
-            className="group relative bg-gradient-to-br from-white to-gray-50 rounded-2xl p-6 shadow-xs border border-gray-200 transition-all duration-300 hover:shadow-lg"
+            className="group relative bg-linear-to-br from-white to-gray-50 rounded-2xl p-6 shadow-xs border border-gray-200 transition-all duration-300 hover:shadow-lg"
           > 
             <div className="ml-4">
               <div className="inline-block bg-blue-200 text-gray-800 px-3 py-1 rounded-full text-xs font-semibold mb-4">
@@ -181,7 +175,6 @@ const Cards = () => {
           </article>
         ))}
         
-        {/* No results message */}
         {filteredPosts.length === 0 && searchTerm && (
           <div className="col-span-full text-center py-12">
             <p className="text-gray-500 text-lg">

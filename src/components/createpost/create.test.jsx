@@ -37,7 +37,6 @@ const Create = ({ onPostCreated }) => {
         userId: 1 
       };
 
-      // Create new post - JSONPlaceholder will simulate the creation
       const response = await fetch(API_URL, {
         method: 'POST',
         headers: {
@@ -50,18 +49,14 @@ const Create = ({ onPostCreated }) => {
 
       const newPost = await response.json();
       
-      // Add a temporary ID for display (since JSONPlaceholder returns id: 101 always)
-      newPost.id = Date.now(); // Use timestamp as temporary ID
+      newPost.id = Date.now();
       
-      // Call the parent function to update the posts list
       if (onPostCreated) {
         onPostCreated(newPost);
       }
 
-      // Show success message
       alert('Post created successfully!');
       
-      // Close dialog and reset form
       handleClose();
     } catch (error) {
       console.error('Error creating post:', error);
