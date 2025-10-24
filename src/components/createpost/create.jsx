@@ -1,61 +1,50 @@
 import * as React from 'react';
 import Button from '@mui/material/Button';
-import TextField from '@mui/material/TextField';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogContentText from '@mui/material/DialogContentText';
-import DialogTitle from '@mui/material/DialogTitle';
 import { useState } from 'react';
 import axios from 'axios';
-
+import PostFormDialog from './PostFormDialog.jsx'; 
 
 const API_URL = 'https://jsonplaceholder.typicode.com/posts';
 
 const Create = ({ onPostCreated }) => {
   const [open, setOpen] = React.useState(false);
-  const [title, setTitle] = useState('');
-  const [body, setBody] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const handleClickOpen = () => {
     setOpen(true);
+    setError(null);
   };
 
   const handleClose = () => {
     setOpen(false);
-    setTitle('');
-    setBody('');
   };
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
+  const handlePostSubmitted = async (submissionData, isEditing) => {
     setLoading(true);
+    setError(null);
 
     try {
       const postData = { 
-        title, 
-        body, 
+        title: submissionData.title, 
+        body: submissionData.body, 
         userId: 1 
       };
 
       const response = await axios.post(API_URL, postData);
-
-
       const newPost = response.data;
-      
-      newPost.id = Date.now();
+      newPost.id = Date.now(); 
       
       if (onPostCreated) {
         onPostCreated(newPost);
       }
-
-      alert('Post created successfully!');
       
+      console.log('Post created successfully!');
       handleClose();
-    } catch (error) {
-      console.error('Error creating post:', error);
-      alert('Error creating post: ' + error.message);
+
+    } catch (err) {
+      console.error('Error creating post:', err);
+      setError('Failed to create post. Check console for details.');
     } finally {
       setLoading(false);
     }
@@ -72,62 +61,17 @@ const Create = ({ onPostCreated }) => {
         </Button>
       </div>
       
-      <Dialog 
-        open={open} 
+      <PostFormDialog
+        open={open}
         onClose={handleClose}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>Add New Post</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Add the title and the description for the post you want to create.
-          </DialogContentText>
-          <form onSubmit={handleSubmit} id="subscription-form">
-            <TextField
-              autoFocus
-              required
-              margin="dense"
-              id="title"
-              name="title"
-              label="Title"
-              type="text"
-              fullWidth
-              variant="outlined"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              sx={{ mb: 2 }}
-            />
-            <TextField
-              required
-              margin="dense"
-              id="description"
-              name="description"
-              label="Description"
-              type="text"
-              fullWidth
-              variant="outlined"
-              multiline
-              rows={4}
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-            />
-          </form>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleClose} disabled={loading}>
-            Cancel
-          </Button>
-          <Button 
-            type="submit" 
-            form="subscription-form" 
-            disabled={loading || !title.trim() || !body.trim()}
-            variant="contained"
-          >
-            {loading ? 'Creating...' : 'Create Post'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        isSubmitting={loading}
+        post={null}
+        onPostSubmitted={handlePostSubmitted}
+      />
+
+      {error && (
+        <p className="text-center text-red-500 mt-4 font-medium">{error}</p>
+      )}
     </React.Fragment>
   );
 };
